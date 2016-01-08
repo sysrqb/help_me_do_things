@@ -1,0 +1,60 @@
+#!/bin/sh
+
+if [ "`id -u`" = "0" ]
+then
+  if [ "${HOME}" = "/root" ]
+  then
+    echo "You ran this without -E, didn't you..."
+    exit
+  fi
+else
+  echo "Root makes the world go round (in an oppressive kind of way)..." \
+       "please keep it spinning."
+  exit
+fi
+
+service tor stop
+
+Persistent/tweak_torrc
+echo "SocksPort unix:/run/tor/socks WorldWritable" >> /etc/tor/torrc
+cp -ab ${HOME}/Persistent/repos/tor/src/or/tor /usr/bin/tor
+chmod 0755 /usr/bin/tor
+chown root:root /usr/bin/tor
+sudo sed --in-place \
+    's/mkdir -m 02750 "\$TORPIDDIR"/mkdir -m 02751 "\$TORPIDDIR"/' \
+    /etc/init.d/tor
+if [ -e /var/run/tor ]
+then
+  chmod o+x /var/run/tor
+fi
+echo "/{,var/}run/tor/socks w," >> /etc/apparmor.d/local/system_tor
+
+apt-get -t jessie -y install build-essential autoconf automake libtool \
+    flex bison gdb gcc-doc hibernate glibc-doc make-doc libssl-dev \
+    libssl-doc libevent-dev manpages-dev asciidoc docbook-xsl docbook-xml \
+    xmlto w3m debconf-utils
+# Remain with Wheezy, Jessie causes glib conflict
+apt-get -y install xscreensaver 
+service apparmor reload
+service tor start
+
+${HOME}/Persistent/repos/help_me_do_things/install_torsocks
+
+# ${HOME}/Persistent/configure_iptables
+
+apt-get -t jessie -y install mutt offlineimap
+
+apt-get -t jessie -y install libtspi1 libgtkspell-3-0 locales
+
+sudo -u amnesia nohup xscreensaver -nosplash &>/dev/null &
+
+echo "amnesia ALL = NOPASSWD: SETENV: /usr/bin/unshare" >> \
+    /etc/sudoers.d/zzz_unshare
+
+echo "locales locales/default_environment_locale select en_US.UTF-8" | \
+    debconf-set-selections
+echo "locales locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8" | \
+    debconf-set-selections
+locale-gen
+
+restart-vidalia

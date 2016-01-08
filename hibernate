@@ -1,0 +1,37 @@
+#!/bin/sh
+
+PIDFILE=/var/run/udev-watchdog
+
+fail() {
+  echo $@
+  exit -1
+}
+
+get_pid() {
+  while read line
+  do
+    ps --pid ${line} --no-header -o ppid
+  done < ${PIDFILE}
+}
+
+if [ ! -e "${PIDFILE}" ]
+then
+  fail "Pid file does not exist! ${PIDFILE}"
+fi
+
+pid=`get_pid`
+echo `date`
+echo "Stopping ${pid}"
+echo `/bin/ps --pid ${pid} -o s,cmd`
+kill -STOP ${pid}
+sleep 1
+device=`udevadm info --device-id-of-file=/lib/live/mount/medium`
+echo `udevadm info --query path --path /dev/block/${device}`
+hibernate-ram
+sleep 2
+device=`udevadm info --device-id-of-file=/lib/live/mount/medium`
+echo `udevadm info --query path --path /dev/block/${device}`
+sleep 1
+echo "Continuing ${pid}"
+echo `date`
+kill -CONT ${pid}

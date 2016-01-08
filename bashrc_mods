@@ -1,0 +1,24 @@
+#! /bin/sh
+
+export GOPATH=$HOME/Persistent/go
+export PATH=$PATH:$GOPATH/bin
+alias pond='$GOPATH/bin/client'
+alias pond-build='sudo bash -c "sudo apt-get update" && \
+go get -u -tags ubuntu github.com/agl/pond/client && \
+echo "Success." || echo "Sorry, something went wrong."'
+alias pond-cli='$GOPATH/bin/client --cli'
+alias pond-install-deps='sudo apt-get install libtspi1 libgtkspell-3-0'
+alias run_mutt='sudo -E unshare -mun Persistent/repos/help_me_do_things/run_mutt_as.sh'
+alias run_offline_mutt='sudo -E unshare -mun Persistent/repos/help_me_do_things/run_mutt_as.sh offline'
+alias pond-client="$GOPATH/bin/client --state-file=/home/amnesia/Persistent/.pond"
+. ${HOME}/Persistent/repos/help_me_do_things/configure_terminal
+
+for d in .mutt_draft .mutt_sent
+do
+  if [ ! -L ${HOME}/$d -a ! -d ${HOME}/$d ]
+  then
+    ln -s /live/persistence/TailsData_unlocked/dotfiles/${d} ${HOME}/
+  fi
+done
+#export SOCKS5_SERVER=127.0.0.1:9250
+#export SOCKS_SERVER=127.0.0.1:9250

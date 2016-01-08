@@ -1,0 +1,11 @@
+#!/bin/sh
+
+(cd ${HOME}/Persistent/repos/torsocks && make install)
+
+sudo mkdir -p -m 755 /usr/local/etc/tor
+sudo rm /usr/local/etc/tor/torsocks.conf && \
+sudo ln -s ${HOME}/Persistent/repos/torsocks/doc/torsocks.conf.use /usr/local/etc/tor/torsocks.conf
+sudo chmod -R ugo+r /usr/local/etc/tor
+sudo chmod ugo+xr /usr/local/etc/tor
+sudo chmod -R ugo+r /usr/local/lib/torsocks
+sudo chmod ugo+rx /usr/local/lib/torsocks

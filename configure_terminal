@@ -1,0 +1,4 @@
+#!/bin/sh
+gconftool --type bool --set /apps/gnome-terminal/profiles/Default/use_theme_colors false
+gconftool --type string --set /apps/gnome-terminal/profiles/Default/foreground_color "#0000FFFF0000"
+gconftool --type string --set /apps/gnome-terminal/profiles/Default/background_color "#000000000000"
