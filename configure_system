@@ -13,10 +13,24 @@ else
   exit
 fi
 
+apt-get -t jessie -y install build-essential autoconf automake libtool \
+    flex bison gdb gcc-doc hibernate glibc-doc make-doc libssl-dev \
+    libssl-doc libevent-dev manpages-dev asciidoc docbook-xsl docbook-xml \
+    xmlto w3m debconf-utils
+# Remain with Wheezy, Jessie causes glib conflict
+apt-get -y install xscreensaver
+
+apt-get -t jessie -y install mutt offlineimap
+
+apt-get -t jessie -y install libtspi1 libgtkspell-3-0 locales
 service tor stop
 
 Persistent/tweak_torrc
-echo "SocksPort unix:/run/tor/socks WorldWritable" >> /etc/tor/torrc
+echo "SocksPort unix:/run/tor/socks/socks WorldWritable" >> /etc/tor/torrc
+mkdir -m 755 /run/tor/socks
+chown debian-tor /run/tor/socks
+mkdir -m 750 /run/tor/control
+chown debian-tor /run/tor/control
 cp -ab ${HOME}/Persistent/repos/tor/src/or/tor /usr/bin/tor
 chmod 0755 /usr/bin/tor
 chown root:root /usr/bin/tor
@@ -27,24 +41,21 @@ if [ -e /var/run/tor ]
 then
   chmod o+x /var/run/tor
 fi
-echo "/{,var/}run/tor/socks w," >> /etc/apparmor.d/local/system_tor
+echo "[Tor]
+Changed=true
+ControlSocket=/var/run/tor/control/control
+AuthCookie=/var/run/tor/control"
+echo "/{,var/}run/tor/socks/socks w," >> /etc/apparmor.d/local/system_tor
+sed --in-place -e 's,tor/control,tor/control/control,g' /etc/apparmor.d/system_tor
+sed --in-place -e 's,tor/control,tor/control/control,g' /usr/share/tor/tor-service-defaults-torrc
 
-apt-get -t jessie -y install build-essential autoconf automake libtool \
-    flex bison gdb gcc-doc hibernate glibc-doc make-doc libssl-dev \
-    libssl-doc libevent-dev manpages-dev asciidoc docbook-xsl docbook-xml \
-    xmlto w3m debconf-utils
-# Remain with Wheezy, Jessie causes glib conflict
-apt-get -y install xscreensaver 
+
 service apparmor reload
 service tor start
 
 ${HOME}/Persistent/repos/help_me_do_things/install_torsocks
 
 # ${HOME}/Persistent/configure_iptables
-
-apt-get -t jessie -y install mutt offlineimap
-
-apt-get -t jessie -y install libtspi1 libgtkspell-3-0 locales
 
 sudo -u amnesia nohup xscreensaver -nosplash &>/dev/null &
 
