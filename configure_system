@@ -1,5 +1,23 @@
 #!/bin/sh
 
+AMNESIAHOME=/home/amnesia/
+
+# Insert line $2 after the line with prefix $1
+insert_after_prefix() {
+  local prefix="$1"
+  local line="$2"
+  local file="$3"
+  local tmpfile="$file".`date +%s`
+
+  awk ' BEGIN { line="'"$line"'"; prefix="'"$prefix"'"; } { print $0;  if ($0 ~ "^" prefix) { print line; }}' $file > $tmpfile
+  if [ "$?" = 0 ]; then
+    echo "Saving $file changes"
+    mv $tmpfile $file
+  else
+    echo "$file rewrite failed."
+  fi
+}
+
 if [ "`id -u`" = "0" ]
 then
   if [ "${HOME}" = "/root" ]
@@ -13,49 +31,53 @@ else
   exit
 fi
 
-apt-get -t jessie -y install build-essential autoconf automake libtool \
+apt-get -y install build-essential autoconf automake libtool \
     flex bison gdb gcc-doc hibernate glibc-doc make-doc libssl-dev \
     libssl-doc libevent-dev manpages-dev asciidoc docbook-xsl docbook-xml \
     xmlto w3m debconf-utils
-# Remain with Wheezy, Jessie causes glib conflict
 apt-get -y install xscreensaver
 
-apt-get -t jessie -y install mutt offlineimap
+apt-get -y install mutt offlineimap
 
-apt-get -t jessie -y install libtspi1 libgtkspell-3-0 locales
+apt-get -y install libtspi1 libgtkspell3-3-0 locales
 service tor stop
 
-Persistent/tweak_torrc
-echo "SocksPort unix:/run/tor/socks/socks WorldWritable" >> /etc/tor/torrc
-mkdir -m 755 /run/tor/socks
-chown debian-tor /run/tor/socks
-mkdir -m 750 /run/tor/control
-chown debian-tor /run/tor/control
-cp -ab ${HOME}/Persistent/repos/tor/src/or/tor /usr/bin/tor
-chmod 0755 /usr/bin/tor
-chown root:root /usr/bin/tor
-sudo sed --in-place \
-    's/mkdir -m 02750 "\$TORPIDDIR"/mkdir -m 02751 "\$TORPIDDIR"/' \
-    /etc/init.d/tor
-if [ -e /var/run/tor ]
+if [ ! -d /tmp/.tor ]; then
+  echo "Creating /tmp/.tor"
+  mkdir -m 755 /tmp/.tor
+elif [ -e /tmp/.tor ]
 then
-  chmod o+x /var/run/tor
+  echo "/tmp/.tor exists but is not a directory!"
+  echo "Please correct!"
+  exit
 fi
-echo "[Tor]
-Changed=true
-ControlSocket=/var/run/tor/control/control
-AuthCookie=/var/run/tor/control"
-echo "/{,var/}run/tor/socks/socks w," >> /etc/apparmor.d/local/system_tor
-sed --in-place -e 's,tor/control,tor/control/control,g' /etc/apparmor.d/system_tor
-sed --in-place -e 's,tor/control,tor/control/control,g' /usr/share/tor/tor-service-defaults-torrc
 
+${AMNESIAHOME}/Persistent/tweak_torrc
+echo "SocksPort unix:/tmp/.tor/socks WorldWritable" >> /etc/tor/torrc
+#cp -ab ${AMNESIAHOME}/Persistent/repos/tor/src/or/tor /usr/bin/tor
+#chmod 0755 /usr/bin/tor
+#chown root:root /usr/bin/tor
+sed --in-place 's/PrivateTmp/\#PrivateTmp/' /lib/systemd/system/tor@default.service
+insert_after_prefix "ExecStartPre=/usr/bin/install -Z -m 02750 -o debian-tor -g debian-tor -d /var/run/tor" \
+                    "ExecStartPre=/usr/bin/install -Z -m 02755 -o debian-tor -g debian-tor -d /tmp/.tor" \
+                    /lib/systemd/system/tor@default.service
 
+echo "/tmp/.tor/socks w," >> /etc/apparmor.d/local/system_tor
+#echo "ReadWriteDirectories=-/tmp/.tor" >> /lib/systemd/system/tor@default.service
+insert_after_prefix "ReadWriteDirectories=-/var/run" \
+                    "ReadWriteDirectories=-/tmp/.tor" \
+                    /lib/systemd/system/tor@default.service
+
+echo "Reloading apparmor"
 service apparmor reload
+echo "Reloading Systemd profiles"
+systemctl daemon-reload
+echo "Restarting tor"
 service tor start
 
-${HOME}/Persistent/repos/help_me_do_things/install_torsocks
+${AMNESIAHOME}/Persistent/repos/help_me_do_things/install_torsocks
 
-# ${HOME}/Persistent/configure_iptables
+# ${AMNESIAHOME}/Persistent/configure_iptables
 
 sudo -u amnesia nohup xscreensaver -nosplash &>/dev/null &
 
@@ -67,5 +89,3 @@ echo "locales locales/default_environment_locale select en_US.UTF-8" | \
 echo "locales locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8" | \
     debconf-set-selections
 locale-gen
-
-restart-vidalia
